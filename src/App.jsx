@@ -158,7 +158,7 @@ export default function App() {
         },
         body: JSON.stringify({
           // IMPORTANT: Replace this string with the key Web3Forms emails you!
-          access_key: "5c2a5346-70b4-4452-9e78-6b0a08dedf73", 
+          access_key: "YOUR_WEB3FORMS_ACCESS_KEY_HERE", 
           name: formData.name,
           email: formData.email,
           message: formData.message,
