@@ -2,26 +2,25 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValue, useMotionTemplate } from "framer-motion";
 import ParticleBackground from "./ParticleBackground";
 
-// --- Custom Component for the Popping Avatars ---
 const PoppingAvatar = ({ top, left, right, bottom, delay, size = "w-16 h-16 md:w-24 md:h-24" }) => {
   return (
     <motion.img
-      src="/favicon-removebg.png" // Change this back to your placeholder if you haven't added the photo yet!
+      src="/favicon-removebg.png" 
       alt="Patrick Spawning"
       className={`absolute ${size} rounded-full border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] object-cover pointer-events-none z-0`}
       style={{ top, left, right, bottom }}
       animate={{
-        scale: [0, 1.2, 1, 1, 1.1, 0], // Pops up, settles, floats, then shrinks away
+        scale: [0, 1.2, 1, 1, 1.1, 0], 
         opacity: [0, 1, 1, 1, 1, 0],
-        rotate: [-15, 5, -5, 10, -20], // Gives it a playful wiggle
-        y: [0, -10, 5, -5, 0] // Slight floating movement while visible
+        rotate: [-15, 5, -5, 10, -20], 
+        y: [0, -10, 5, -5, 0] 
       }}
       transition={{
         duration: 4.5,
         ease: "easeInOut",
         repeat: Infinity,
         delay: delay,
-        repeatDelay: Math.random() * 2 // Random wait time before it spawns again
+        repeatDelay: Math.random() * 2 
       }}
     />
   );
@@ -120,6 +119,10 @@ export default function App() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  
+  // NEW: State variables to track email sending status
+  const [isSending, setIsSending] = useState(false);
+  const [sendResult, setSendResult] = useState(""); // "success" or "error"
 
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
@@ -140,13 +143,47 @@ export default function App() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleSendEmail = (e) => {
+  // NEW: Completely rewritten Real-Time Email Handler
+  const handleSendEmail = async (e) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Portfolio Inquiry from ${formData.name}`);
-    const body = encodeURIComponent(`${formData.message}\n\n---\nSender Email: ${formData.email}\nSender Name: ${formData.name}`);
-    window.location.href = `mailto:johnpatrickdelacruz40@gmail.com?subject=${subject}&body=${body}`;
-    setIsModalOpen(false); 
-    setFormData({ name: '', email: '', message: '' }); 
+    setIsSending(true);
+    setSendResult("");
+
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          // IMPORTANT: Replace this string with the key Web3Forms emails you!
+          access_key: "YOUR_WEB3FORMS_ACCESS_KEY_HERE", 
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+          subject: `Portfolio Inquiry from ${formData.name}`,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setSendResult("success");
+        // Wait 2 seconds so they can see the "Sent!" message, then close modal
+        setTimeout(() => {
+          setIsModalOpen(false);
+          setFormData({ name: '', email: '', message: '' });
+          setSendResult("");
+        }, 2000);
+      } else {
+        setSendResult("error");
+      }
+    } catch (error) {
+      console.log(error);
+      setSendResult("error");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const projects = [
@@ -220,22 +257,34 @@ export default function App() {
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               <h3 className="text-3xl font-bold text-white mb-2">Get in touch</h3>
-              <p className="text-zinc-400 text-sm mb-8">Fill out the form below and it will format an email for you.</p>
+              <p className="text-zinc-400 text-sm mb-8">Fill out the form below to send me a message directly.</p>
               <form onSubmit={handleSendEmail} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Your Name</label>
-                  <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" placeholder="John Doe" />
+                  <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} disabled={isSending} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50" placeholder="John Doe" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Your Email</label>
-                  <input required type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" placeholder="john@example.com" />
+                  <input required type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} disabled={isSending} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50" placeholder="john@example.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Message</label>
-                  <textarea required rows="4" value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors resize-none" placeholder="Hello Patrick, I would like to talk about..." />
+                  <textarea required rows="4" value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} disabled={isSending} className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors resize-none disabled:opacity-50" placeholder="Hello Patrick, I would like to talk about..." />
                 </div>
-                <button type="submit" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)} className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3.5 rounded-xl transition-colors mt-4">
-                  Prepare Email
+                
+                {/* NEW: Dynamic Button State */}
+                <button 
+                  type="submit" 
+                  disabled={isSending}
+                  onMouseEnter={() => setIsHovering(true)} 
+                  onMouseLeave={() => setIsHovering(false)} 
+                  className={`w-full font-bold py-3.5 rounded-xl transition-all mt-4 ${
+                    sendResult === "success" ? "bg-emerald-400 text-zinc-900" :
+                    sendResult === "error" ? "bg-red-500 text-white" :
+                    "bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
+                  } disabled:opacity-70`}
+                >
+                  {isSending ? "Sending..." : sendResult === "success" ? "Message Sent! ✓" : sendResult === "error" ? "Error! Try Again." : "Send Message"}
                 </button>
               </form>
             </motion.div>
